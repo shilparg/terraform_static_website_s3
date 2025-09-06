@@ -1,0 +1,1 @@
+# terraform_static_website_s3
