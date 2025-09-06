@@ -1,0 +1,94 @@
+Thanks for the screenshot, Shilpa — that’s a classic **AccessDenied** scenario when trying to create or modify an S3 bucket via Terraform. Let’s troubleshoot this methodically:
+
+---
+
+## 🔍 Root Cause Analysis
+
+You're seeing:
+
+- `403 AccessDenied` when creating the bucket
+- Errors applying ACL and bucket policy
+- A warning about deprecated arguments
+
+These typically point to **insufficient IAM permissions** or **restricted account policies**.
+
+---
+
+## ✅ Step-by-Step Fix
+
+### 1. **Verify IAM Permissions**
+
+Ensure your IAM user or role has these permissions:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "s3:CreateBucket",
+    "s3:PutBucketPolicy",
+    "s3:PutBucketAcl",
+    "s3:PutObject",
+    "s3:GetObject",
+    "s3:ListBucket",
+    "route53:ChangeResourceRecordSets",
+    "route53:GetHostedZone",
+    "route53:ListHostedZones"
+  ],
+  "Resource": "*"
+}
+```
+
+> If you're using an **organization-managed account**, check for **Service Control Policies (SCPs)** or **permission boundaries** that might block S3 actions.
+
+---
+
+### 2. **Use Correct Bucket Naming**
+
+Since you want to serve the site at `http://shilpas3.sctp-sandbox.com/`, your S3 bucket **must be named exactly**:
+
+```hcl
+bucket = "shilpas3.sctp-sandbox.com"
+```
+
+S3 static hosting requires the bucket name to match the full subdomain.
+
+---
+
+### 3. **Avoid Deprecated ACLs**
+
+Terraform now recommends using `aws_s3_bucket_ownership_controls` and `aws_s3_bucket_public_access_block` instead of `acl = "public-read"`.
+
+Here’s the updated pattern:
+
+```hcl
+resource "aws_s3_bucket_ownership_controls" "ownership" {
+  bucket = aws_s3_bucket.shilpas3_site.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "public_access" {
+  bucket                  = aws_s3_bucket.shilpas3_site.id
+  block_public_acls       = false
+  ignore_public_acls      = false
+  block_public_policy     = false
+  restrict_public_buckets = false
+}
+```
+
+---
+
+### 4. **Re-run Terraform**
+
+Once permissions and bucket naming are corrected, re-run:
+
+```bash
+terraform init
+terraform apply
+```
+
+---
+
+Would you like me to refactor your full Terraform config with these updates so it’s clean and compliant with current best practices?
