@@ -1,9 +1,5 @@
-provider "aws" {
-  region = "us-east-1" # Singapore region
-}
-
 resource "aws_s3_bucket" "shilpakks3_site" {
-  bucket = "shilpakks3.sctp-sandbox.com"
+  bucket = var.bucket_name #"shilpakks3.sctp-sandbox.com"
   #acl    = "public-read"
   force_destroy = true #from c9 -s3 hosting
   tags = {
@@ -60,20 +56,47 @@ resource "aws_s3_bucket_policy" "shilpakks3_policy" {
   })
 }
 # Upload Website files
-resource "aws_s3_object" "index" {
-  bucket       = aws_s3_bucket.shilpakks3_site.id
-  key          = "index.html"
-  source       = "site/index.html"
-  #acl          = "public-read"
-  content_type = "text/html"
-}
+# resource "aws_s3_object" "index" {
+#   bucket       = aws_s3_bucket.shilpakks3_site.id
+#   key          = "index.html"
+#   source       = "site/index.html"
+#   #acl          = "public-read"
+#   content_type = "text/html"
+# }
 
-resource "aws_s3_object" "error" {
-  bucket       = aws_s3_bucket.shilpakks3_site.id
-  key          = "error.html"
-  source       = "site/error/index.html" #"site/error.html"
-  #acl          = "public-read"
-  content_type = "text/html"
+# resource "aws_s3_object" "error" {
+#   bucket       = aws_s3_bucket.shilpakks3_site.id
+#   key          = "error.html"
+#   source       = "site/error/index.html" #"site/error.html"
+#   #acl          = "public-read"
+#   content_type = "text/html"
+# }
+
+resource "aws_s3_object" "site_assets" {
+  for_each = fileset("site", "**")
+
+  bucket = aws_s3_bucket.shilpakks3_site.id
+  key    = each.value
+  source = "site/${each.value}"
+
+  content_type = lookup(
+    {
+      html = "text/html"
+      css  = "text/css"
+      js   = "application/javascript"
+      png  = "image/png"
+      jpg  = "image/jpeg"
+      jpeg = "image/jpeg"
+      svg  = "image/svg+xml"
+      woff = "font/woff"
+      woff2 = "font/woff2"
+      ttf  = "font/ttf"
+      eot  = "application/vnd.ms-fontobject"
+      json = "application/json"
+    },
+    lower(regex("[^.]+$", each.value)),
+    "application/octet-stream"
+  )
 }
 
 # Route 53 DNS record
